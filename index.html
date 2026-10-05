@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Landing Race: who lands transactions fastest on Solana?</title>
+<style>
+:root{--bg:#0b0d10;--card:#14181d;--tx:#e8edf2;--mu:#8a96a3;--ok:#3ddc97;--bad:#ff5c6c;--ac:#6aa9ff}
+@media(prefers-color-scheme:light){:root{--bg:#f5f7fa;--card:#fff;--tx:#12171d;--mu:#5b6773}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,sans-serif;padding:16px;max-width:900px;margin:auto}
+h1{font-size:22px;margin:4px 0}p.s{color:var(--mu);margin:0 0 14px}
+.card{background:var(--card);border-radius:12px;padding:14px;margin:12px 0;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:7px 8px;white-space:nowrap}
+th{color:var(--mu);font-weight:500;border-bottom:1px solid #2a3139}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;background:#2a3139}
+.ok{color:var(--ok)}.bad{color:var(--bad)}a{color:var(--ac)}.w{color:var(--mu);font-size:13px}
+</style></head><body>
+<h1>Landing Race</h1>
+<p class="s">Same transaction, sent down every path at once, timed by one neutral observer. Live on mainnet.</p>
+<div class="card" id="health">loading…</div>
+<div class="card"><b>Leaderboard</b><table id="lb"></table></div>
+<div class="card"><b>Recent rounds</b><table id="rounds"></table></div>
+<p class="w">Landing time = send to first "confirmed" seen by polling every 250 ms, so resolution is about ±250 ms. Beam costs a tip on top of the base fee; the cost column shows it. Every row links to Solscan.</p>
+<script>
+const f=(v,s="")=>v==null?"–":v+s, sol=l=>(l/1e9).toFixed(6);
+function render(d){
+  const h=d.health,c=d.config,age=h.lastRoundAt?Math.round((Date.now()-h.lastRoundAt)/60000):null;
+  document.getElementById("health").innerHTML=
+   `<span class="badge ${h.lastError?"bad":"ok"}">${h.lastError?"issue":h.running?"running a round":"healthy"}</span> `+
+   `Last round: ${age==null?"none yet":age+" min ago"} · every ${c.intervalMin} min · paths: ${c.paths.join(", ")}<br>`+
+   `<span class="w">Wallet <a href="https://solscan.io/account/${c.wallet}" target="_blank">${c.wallet.slice(0,6)}…${c.wallet.slice(-4)}</a> · balance ${h.balanceSol==null?"–":h.balanceSol.toFixed(4)} SOL${h.lastError?" · "+h.lastError:""}</span>`;
+  const rows=Object.entries(d.stats).sort((a,b)=>(a[1].medianMs??9e9)-(b[1].medianMs??9e9));
+  document.getElementById("lb").innerHTML="<tr><th>Path</th><th>Median</th><th>p95</th><th>Landed</th><th>Slot lag</th><th>Avg cost (SOL)</th></tr>"+
+   rows.map(([k,s])=>`<tr><td><b>${k}</b></td><td>${f(s.medianMs," ms")}</td><td>${f(s.p95Ms," ms")}</td><td>${s.landed}/${s.sent} (${Math.round(s.landRate*100)}%)</td><td>${s.avgSlotLag==null?"–":s.avgSlotLag.toFixed(2)}</td><td>${sol(s.avgCostLamports)}</td></tr>`).join("");
+  document.getElementById("rounds").innerHTML="<tr><th>Time</th><th>Path</th><th>Result</th><th>Slot</th><th>Tx</th></tr>"+
+   d.rounds.flatMap(r=>Object.entries(r.paths).map(([p,v])=>
+    `<tr><td>${new Date(r.roundId).toLocaleTimeString()}</td><td>${p}</td><td class="${v.status==="landed"?"ok":"bad"}">${v.status==="landed"?v.landMs+" ms":v.status}</td><td>${v.slot??"–"}</td><td><a target="_blank" href="https://solscan.io/tx/${v.sig}">${v.sig.slice(0,8)}…</a></td></tr>`)).join("");
+}
+fetch("/api/state").then(r=>r.json()).then(render);
+new EventSource("/events").onmessage=e=>render(JSON.parse(e.data));
+</script></body></html>

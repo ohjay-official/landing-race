@@ -1,0 +1,21 @@
+{
+  "name": "landing-race",
+  "version": "0.1.0",
+  "description": "Live benchmark of Solana transaction landing: public RPC vs Solami RPC vs Solami Beam",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "bs58": "^5.0.0",
+    "express": "^4.19.2",
+    "@peculiar/x509": "^1.12.0"
+  },
+  "optionalDependencies": {
+    "@matrixai/quic": "^1.3.0"
+  }
+}
